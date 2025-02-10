@@ -69,7 +69,7 @@ def upload_cards(api_key: str, input_file: str) -> None:
         response = requests.post(
             f"{API_URL}/upload_cards",
             params={"api_key": api_key},
-            json=upload_data.dict()
+            json=upload_data.model_dump()
         )
         response.raise_for_status()
         

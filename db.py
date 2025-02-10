@@ -433,7 +433,7 @@ class FlashcardsDB:
                         logger.debug(f'Updating existing card', extra={
                             'card_id': card_id,
                             'old_due_date': card.due_date.isoformat(),
-                            'new_due_date': card_data['due_date']
+                            'new_due_date': card_data.due_date
                         })
                         card.question = card_data.question
                         card.answer = card_data.answer
