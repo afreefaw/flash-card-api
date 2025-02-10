@@ -7,7 +7,7 @@ A simple spaced repetition flashcard API that helps you learn and retain informa
 - Create and manage flashcards with questions and answers
 - Tag-based organization
 - Spaced repetition algorithm for optimal learning
-- Simple API key authentication
+- Secure API key authentication with environment variable support
 - Persistent storage using SQLite (local) or PostgreSQL (production)
 - Comprehensive logging for debugging
 
@@ -21,8 +21,11 @@ pip install -r requirements.txt
 
 3. Create a `.env` file:
 ```bash
-# Use SQLite for local development
+# Database Configuration
 DATABASE_URL=sqlite:///flashcards.db
+
+# API Key Configuration
+API_KEY=your-development-key-here
 ```
 
 4. Start the server:
@@ -52,18 +55,27 @@ This API can be deployed to Render.com with PostgreSQL support. Here's how:
      - Start Command: `uvicorn api:app --host 0.0.0.0 --port $PORT`
    - Add environment variables:
      - `DATABASE_URL`: Your PostgreSQL URL from step 1
-     - `API_KEY`: A secure API key of your choice
+     - `API_KEY`: Generate a secure random string (e.g., using `openssl rand -hex 32`)
    - Click "Create Web Service"
 
 The API will automatically use PostgreSQL in production while maintaining SQLite support for local development.
+
+### Security Notes
+
+- Never use the development API key in production
+- Generate a secure random API key for production use
+- Keep your .env file out of version control (it's already in .gitignore)
+- The API will refuse to start in production without a proper API key set
 
 ## Authentication
 
 All API endpoints require an API key passed in the `X-API-Key` header:
 
 ```
-X-API-Key: your-secret-key-here
+X-API-Key: your-api-key-here
 ```
+
+The API key must match the one set in your environment variables.
 
 ## API Endpoints
 
@@ -227,9 +239,15 @@ Here's a Python example of using the API:
 
 ```python
 import requests
+import os
+from dotenv import load_dotenv
+
+# Load API key from environment
+load_dotenv()
+API_KEY = os.getenv("API_KEY")
 
 API_URL = "http://localhost:8000"  # Or your Render.com URL in production
-HEADERS = {"X-API-Key": "your-secret-key-here"}
+HEADERS = {"X-API-Key": API_KEY}
 
 # Create a new card
 response = requests.post(

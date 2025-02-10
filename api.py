@@ -6,6 +6,11 @@ import logging
 from pythonjsonlogger import jsonlogger
 import time
 from db import FlashcardsDB
+import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # Set up logging
 api_logger = logging.getLogger('flashcards.api')
@@ -21,7 +26,9 @@ app = FastAPI(title="Flashcards API")
 db = FlashcardsDB()
 
 # Configuration
-API_KEY = "your-secret-key-here"  # In production, this should be in a secure configuration
+API_KEY = os.getenv("API_KEY", "your-secret-key-here")  # Default key for development
+if API_KEY == "your-secret-key-here" and os.getenv("RENDER"):
+    raise ValueError("Production API_KEY must be set in environment variables")
 
 # Models
 class CardBase(BaseModel):
