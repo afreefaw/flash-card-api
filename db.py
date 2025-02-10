@@ -418,14 +418,12 @@ class FlashcardsDB:
             
             for idx, card_data in enumerate(cards):
                 try:
-                    card_id = card_data.get('id')
+                    card_id = card_data.id
                     logger.debug(f'Processing card {idx+1}/{len(cards)}', extra={
                         'card_id': card_id,
-                        'has_question': 'question' in card_data,
-                        'has_answer': 'answer' in card_data,
-                        'has_tags': 'tags' in card_data,
-                        'has_due_date': 'due_date' in card_data,
-                        'has_success_count': 'success_count' in card_data
+                        'question': card_data.question,
+                        'success_count': card_data.success_count,
+                        'tag_count': len(card_data.tags)
                     })
                     
                     card = db.query(Card).filter(Card.id == card_id).first()
@@ -437,24 +435,24 @@ class FlashcardsDB:
                             'old_due_date': card.due_date.isoformat(),
                             'new_due_date': card_data['due_date']
                         })
-                        card.question = card_data['question']
-                        card.answer = card_data['answer']
-                        card.success_count = card_data['success_count']
-                        card.due_date = datetime.fromisoformat(card_data['due_date'])
-                        card.tags = card_data['tags']
+                        card.question = card_data.question
+                        card.answer = card_data.answer
+                        card.success_count = card_data.success_count
+                        card.due_date = datetime.fromisoformat(card_data.due_date)
+                        card.tags = card_data.tags
                         updated += 1
                     else:
                         # Create new card
                         logger.debug(f'Creating new card', extra={
-                            'due_date': card_data['due_date'],
-                            'tag_count': len(card_data['tags'])
+                            'due_date': card_data.due_date,
+                            'tag_count': len(card_data.tags)
                         })
                         new_card = Card(
-                            question=card_data['question'],
-                            answer=card_data['answer'],
-                            success_count=card_data['success_count'],
-                            due_date=datetime.fromisoformat(card_data['due_date']),
-                            tags=card_data['tags']
+                            question=card_data.question,
+                            answer=card_data.answer,
+                            success_count=card_data.success_count,
+                            due_date=datetime.fromisoformat(card_data.due_date),
+                            tags=card_data.tags
                         )
                         db.add(new_card)
                         inserted += 1
