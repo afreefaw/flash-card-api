@@ -66,7 +66,7 @@ class SpacedRepetitionTest:
     
     def test_next_card_retrieval(self):
         """Test getting the next due card"""
-        print("\nTesting next card retrieval...")
+        logging.info("\nTesting next card retrieval...")
         
         # Create a test card
         card = self.create_test_card(
@@ -74,7 +74,7 @@ class SpacedRepetitionTest:
             "4",
             ["math", "basic"]
         )
-        print(f"Created test card: {card}")
+        logging.info(f"Created test card: {card}")
         
         # Set a future due date for any existing cards to ensure our new card is next
         response = requests.get(
@@ -105,7 +105,7 @@ class SpacedRepetitionTest:
         )
         response.raise_for_status()
         next_card = response.json()
-        print(f"Retrieved next card: {next_card}")
+        logging.info(f"Retrieved next card: {next_card}")
         
         # Verify it's our test card (should be, as it's due immediately)
         assert next_card["id"] == card["id"], "Retrieved card should match created card"
@@ -114,7 +114,7 @@ class SpacedRepetitionTest:
     
     def test_next_card_by_tag(self):
         """Test getting the next due card filtered by tag"""
-        print("\nTesting next card by tag retrieval...")
+        logging.info("\nTesting next card by tag retrieval...")
         
         # Create a test card with specific tag
         card = self.create_test_card(
@@ -122,7 +122,7 @@ class SpacedRepetitionTest:
             "Paris",
             ["geography", "europe"]
         )
-        print(f"Created test card with geography tag: {card}")
+        logging.info(f"Created test card with geography tag: {card}")
         
         # Set a future due date for any existing cards with the same tag
         response = requests.get(
@@ -153,7 +153,7 @@ class SpacedRepetitionTest:
         )
         response.raise_for_status()
         next_card = response.json()
-        print(f"Retrieved next card by tag 'geography': {next_card}")
+        logging.info(f"Retrieved next card by tag 'geography': {next_card}")
         
         # Verify it's our test card
         assert next_card["id"] == card["id"], "Retrieved card should match created card"
@@ -161,7 +161,7 @@ class SpacedRepetitionTest:
     
     def test_success_progression(self, card_id: int):
         """Test the spaced repetition progression for successful reviews"""
-        print("\nTesting success progression...")
+        logging.info("\nTesting success progression...")
         
         # Get initial card state
         card = self.get_card(card_id)
@@ -169,7 +169,7 @@ class SpacedRepetitionTest:
             raise Exception(f"Could not find card {card_id}")
         
         last_due_date = datetime.fromisoformat(card['due_date'])
-        print(f"Initial card state: {card}")
+        logging.info(f"Initial card state: {card}")
         
         # Mark success multiple times and check due dates
         for i in range(3):
@@ -179,7 +179,7 @@ class SpacedRepetitionTest:
                 params={"api_key": self.api_key}
             )
             response.raise_for_status()
-            print(f"Marked card {card_id} as success")
+            logging.info(f"Marked card {card_id} as success")
             
             # Get updated card state
             card = self.get_card(card_id)
@@ -187,8 +187,8 @@ class SpacedRepetitionTest:
                 raise Exception(f"Could not find card {card_id} after marking success")
             
             current_due_date = datetime.fromisoformat(card['due_date'])
-            print(f"Card after success {i+1}: {card}")
-            print(f"New due date: {card['due_date']}")
+            logging.info(f"Card after success {i+1}: {card}")
+            logging.info(f"New due date: {card['due_date']}")
             
             # Verify due date increased
             assert current_due_date > last_due_date, f"Due date should increase with each success (was {last_due_date}, now {current_due_date})"
@@ -196,7 +196,7 @@ class SpacedRepetitionTest:
     
     def test_failure_reset(self):
         """Test resetting progress on failure"""
-        print("\nTesting failure reset...")
+        logging.info("\nTesting failure reset...")
         
         # Create and progress a card
         card = self.create_test_card(
@@ -205,7 +205,7 @@ class SpacedRepetitionTest:
             ["math", "multiplication"]
         )
         card_id = card["id"]
-        print(f"Created test card: {card}")
+        logging.info(f"Created test card: {card}")
         
         # Mark as success twice to progress intervals
         for _ in range(2):
@@ -213,11 +213,11 @@ class SpacedRepetitionTest:
                 f"{self.base_url}/mark_success/{card_id}",
                 params={"api_key": self.api_key}
             )
-        print("Marked card as success twice")
+        logging.info("Marked card as success twice")
         
         # Get card state before failure
         card_before = self.get_card(card_id)
-        print(f"Card before failure: {card_before}")
+        logging.info(f"Card before failure: {card_before}")
         
         # Now mark as failure
         response = requests.post(
@@ -225,17 +225,17 @@ class SpacedRepetitionTest:
             params={"api_key": self.api_key}
         )
         response.raise_for_status()
-        print("Marked card as failure")
+        logging.info("Marked card as failure")
         
         # Get card and verify reset
         card_after = self.get_card(card_id)
-        print(f"Card after failure: {card_after}")
+        logging.info(f"Card after failure: {card_after}")
         assert card_after["success_count"] == 0, "Success count should be reset to 0"
         assert datetime.fromisoformat(card_after["due_date"]) < datetime.fromisoformat(card_before["due_date"]), "Due date should be earlier after failure"
     
     def test_manual_due_date(self):
         """Test manually setting a due date"""
-        print("\nTesting manual due date setting...")
+        logging.info("\nTesting manual due date setting...")
         
         # Create a test card
         card = self.create_test_card(
@@ -244,7 +244,7 @@ class SpacedRepetitionTest:
             ["physics", "science"]
         )
         card_id = card["id"]
-        print(f"Created test card: {card}")
+        logging.info(f"Created test card: {card}")
         
         # Set due date to tomorrow
         tomorrow = (datetime.utcnow() + timedelta(days=1)).isoformat()
@@ -254,7 +254,7 @@ class SpacedRepetitionTest:
             json={"due_date": tomorrow}
         )
         response.raise_for_status()
-        print(f"Set due date to: {tomorrow}")
+        logging.info(f"Set due date to: {tomorrow}")
         
         # Try to get next card (should not get this card as it's due tomorrow)
         response = requests.get(
@@ -262,7 +262,7 @@ class SpacedRepetitionTest:
             params={"api_key": self.api_key}
         )
         if response.status_code == 404:
-            print("No cards due (expected as we set due date to tomorrow)")
+            logging.info("No cards due (expected as we set due date to tomorrow)")
         else:
             next_card = response.json()
             assert next_card["id"] != card_id, "Should not get card that's due tomorrow"

@@ -106,6 +106,27 @@ async def get_documents_by_tags(tags: str, api_key: str):
         doc_api_logger.error('Failed to get documents by tags', extra={'error': str(e), 'tags': tags})
         raise HTTPException(status_code=500, detail="Failed to get documents by tags")
 
+@router.get("/search")
+async def search_documents(query: str, api_key: str):
+    verify_api_key(api_key)
+    try:
+        titles = db.search_documents(query)
+        return {"titles": titles}
+    except Exception as e:
+        doc_api_logger.error('Failed to search documents', extra={'error': str(e), 'query': query})
+        raise HTTPException(status_code=500, detail="Failed to search documents")
+
+@router.get("/download")
+async def download_documents(api_key: str):
+    """Download all documents from the database."""
+    verify_api_key(api_key)
+    try:
+        documents = db.get_all_documents()
+        return {"documents": documents}
+    except Exception as e:
+        doc_api_logger.error('Failed to download documents', extra={'error': str(e)})
+        raise HTTPException(status_code=500, detail="Failed to download documents")
+
 @router.get("/{title}")
 async def get_document(title: str, api_key: str):
     verify_api_key(api_key)
@@ -119,16 +140,6 @@ async def get_document(title: str, api_key: str):
     except Exception as e:
         doc_api_logger.error('Failed to get document', extra={'error': str(e), 'title': title})
         raise HTTPException(status_code=500, detail="Failed to get document")
-
-@router.get("/search")
-async def search_documents(query: str, api_key: str):
-    verify_api_key(api_key)
-    try:
-        titles = db.search_documents(query)
-        return {"titles": titles}
-    except Exception as e:
-        doc_api_logger.error('Failed to search documents', extra={'error': str(e), 'query': query})
-        raise HTTPException(status_code=500, detail="Failed to search documents")
 
 @router.post("", response_model=DocumentResponse)
 async def create_document(document: DocumentBase, api_key: str):
@@ -208,17 +219,6 @@ async def delete_document(title: str, api_key: str):
     except Exception as e:
         doc_api_logger.error('Failed to delete document', extra={'error': str(e), 'title': title})
         raise HTTPException(status_code=500, detail="Failed to delete document")
-
-@router.get("/download")
-async def download_documents(api_key: str):
-    """Download all documents from the database."""
-    verify_api_key(api_key)
-    try:
-        documents = db.get_all_documents()
-        return {"documents": documents}
-    except Exception as e:
-        doc_api_logger.error('Failed to download documents', extra={'error': str(e)})
-        raise HTTPException(status_code=500, detail="Failed to download documents")
 
 @router.post("/upload")
 async def upload_documents(documents: DocumentUpload, api_key: str):

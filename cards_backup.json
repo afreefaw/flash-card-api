@@ -1,5 +1,5 @@
 {
-  "exported_at": "2025-02-10T04:05:15.682690",
+  "exported_at": "2025-02-10T07:35:40.148406",
   "cards": [
     {
       "id": 2,
@@ -126,6 +126,34 @@
         "action and reaction",
         "mechanics",
         "science"
+      ]
+    },
+    {
+      "id": 12,
+      "question": "How does sound relate to energy?",
+      "answer": "Sound is the transfer of mechanical energy through a medium as pressure waves, where particles oscillate with kinetic and potential energy.",
+      "success_count": 0,
+      "due_date": "2025-02-10T07:29:55.254336",
+      "tags": [
+        "physics",
+        "sound",
+        "energy",
+        "mechanical waves"
+      ]
+    },
+    {
+      "id": 13,
+      "question": "What is the difference between a Joule and a Newton in terms of energy and force?",
+      "answer": "- A **Joule (J)** is a **measure of energy**\u2014it represents the total accumulated work or energy transferred.\n- A **Newton (N)** is a **measure of force**\u2014it represents the strength of a push or pull applied at a specific moment.\n- **Relationship:** Work is calculated as **force \u00d7 distance** (W = Fd), meaning applying **1 Newton of force over 1 meter** does **1 Joule of work**.\n- **Example:**\n  - Pushing a box with **10 N of force** doesn\u2019t mean energy is stored\u2014only when the box moves over a distance (say, 2 meters) is work done (**20 J** of energy transferred).",
+      "success_count": 0,
+      "due_date": "2025-02-10T07:35:06.946974",
+      "tags": [
+        "physics",
+        "energy",
+        "force",
+        "joule",
+        "newton",
+        "work"
       ]
     }
   ]
