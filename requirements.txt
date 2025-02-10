@@ -2,3 +2,6 @@ python-json-logger
 fastapi
 uvicorn
 python-multipart
+sqlalchemy
+psycopg2-binary
+python-dotenv

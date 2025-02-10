@@ -1,6 +1,6 @@
 # Flashcards API
 
-A simple spaced repetition flashcard API that helps you learn and retain information effectively. Cards are stored in an SQLite database and served through a REST API.
+A simple spaced repetition flashcard API that helps you learn and retain information effectively. Cards are stored in a database (supports both SQLite and PostgreSQL) and served through a REST API.
 
 ## Features
 
@@ -8,10 +8,10 @@ A simple spaced repetition flashcard API that helps you learn and retain informa
 - Tag-based organization
 - Spaced repetition algorithm for optimal learning
 - Simple API key authentication
-- Persistent storage using SQLite
+- Persistent storage using SQLite (local) or PostgreSQL (production)
 - Comprehensive logging for debugging
 
-## Installation
+## Local Development
 
 1. Clone the repository
 2. Install dependencies:
@@ -19,12 +19,43 @@ A simple spaced repetition flashcard API that helps you learn and retain informa
 pip install -r requirements.txt
 ```
 
-3. Start the server:
+3. Create a `.env` file:
+```bash
+# Use SQLite for local development
+DATABASE_URL=sqlite:///flashcards.db
+```
+
+4. Start the server:
 ```bash
 python api.py
 ```
 
 The server will run on `http://localhost:8000`.
+
+## Deployment to Render.com
+
+This API can be deployed to Render.com with PostgreSQL support. Here's how:
+
+1. Create a PostgreSQL database:
+   - Go to render.com and sign up
+   - Click "New +" and select "PostgreSQL"
+   - Choose a name and the free plan
+   - Click "Create Database"
+   - Copy the "External Database URL" (you'll need it later)
+
+2. Create a new Web Service:
+   - Click "New +" and select "Web Service"
+   - Connect your GitHub repository
+   - Choose a name
+   - Set the following:
+     - Build Command: `pip install -r requirements.txt`
+     - Start Command: `uvicorn api:app --host 0.0.0.0 --port $PORT`
+   - Add environment variables:
+     - `DATABASE_URL`: Your PostgreSQL URL from step 1
+     - `API_KEY`: A secure API key of your choice
+   - Click "Create Web Service"
+
+The API will automatically use PostgreSQL in production while maintaining SQLite support for local development.
 
 ## Authentication
 
@@ -197,7 +228,7 @@ Here's a Python example of using the API:
 ```python
 import requests
 
-API_URL = "http://localhost:8000"
+API_URL = "http://localhost:8000"  # Or your Render.com URL in production
 HEADERS = {"X-API-Key": "your-secret-key-here"}
 
 # Create a new card

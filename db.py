@@ -1,10 +1,15 @@
-import sqlite3
-import json
-import logging
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, JSON, MetaData
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
 from datetime import datetime, timedelta
-from pathlib import Path
+import logging
 from pythonjsonlogger import jsonlogger
 from typing import Optional, List
+import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # Set up logging
 log_handler = logging.FileHandler('flashcards.log')
@@ -13,375 +18,358 @@ logger = logging.getLogger('flashcards')
 logger.addHandler(log_handler)
 logger.setLevel(logging.INFO)
 
+# Database setup
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///flashcards.db")
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
+engine = create_engine(DATABASE_URL)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base = declarative_base()
+
+class Card(Base):
+    __tablename__ = "cards"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    question = Column(String, nullable=False)
+    answer = Column(String, nullable=False)
+    success_count = Column(Integer, default=0)
+    due_date = Column(DateTime, nullable=False)
+    tags = Column(JSON, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+class Metadata(Base):
+    __tablename__ = "metadata"
+    
+    key = Column(String, primary_key=True)
+    value = Column(String, nullable=False)
+
+# Create tables
+Base.metadata.create_all(bind=engine)
+
 class FlashcardsDB:
     # Intervals in days for spaced repetition
     INTERVALS = [1/48, 1, 3, 7, 14, 30, 120, 365]  # First interval is 30 minutes (1/48 of a day)
     
-    def __init__(self, db_path='flashcards.db'):
-        self.db_path = db_path
-        self._initialize_db()
+    def __init__(self, db_url=None):
+        if db_url:
+            self.engine = create_engine(db_url)
+            self.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=self.engine)
+        else:
+            self.engine = engine
+            self.SessionLocal = SessionLocal
     
-    def _initialize_db(self):
-        """Initialize the database with required tables if they don't exist."""
+    def _get_db(self):
+        db = self.SessionLocal()
         try:
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.cursor()
-                
-                # Create cards table
-                cursor.execute('''
-                    CREATE TABLE IF NOT EXISTS cards (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        question TEXT NOT NULL,
-                        answer TEXT NOT NULL,
-                        success_count INTEGER DEFAULT 0,
-                        due_date TIMESTAMP NOT NULL,
-                        tags TEXT NOT NULL,
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                    )
-                ''')
-                
-                # Create metadata table for tracking last card
-                cursor.execute('''
-                    CREATE TABLE IF NOT EXISTS metadata (
-                        key TEXT PRIMARY KEY,
-                        value TEXT NOT NULL
-                    )
-                ''')
-                
-                conn.commit()
-                logger.info('Database initialized successfully', extra={
-                    'db_path': self.db_path,
-                    'tables_created': ['cards', 'metadata']
-                })
-        except sqlite3.Error as e:
-            logger.error('Failed to initialize database', extra={
-                'error': str(e),
-                'db_path': self.db_path
-            })
+            return db
+        except:
+            db.close()
             raise
-    
-    def create_card(self, question: str, answer: str, tags: list[str]) -> int:
+
+    def create_card(self, question: str, answer: str, tags: List[str]) -> int:
         """Create a new flashcard and return its ID."""
         try:
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.cursor()
-                # Store tags as JSON string
-                tags_json = json.dumps(tags)
-                # Set initial due date to current timestamp
-                current_time = datetime.utcnow().isoformat()
-                
-                cursor.execute('''
-                    INSERT INTO cards (question, answer, tags, due_date, success_count)
-                    VALUES (?, ?, ?, ?, 0)
-                ''', (question, answer, tags_json, current_time))
-                
-                card_id = cursor.lastrowid
-                conn.commit()
-                
-                logger.info('Created new flashcard', extra={
-                    'card_id': card_id,
-                    'tags': tags
-                })
-                return card_id
-        except sqlite3.Error as e:
+            db = self._get_db()
+            card = Card(
+                question=question,
+                answer=answer,
+                tags=tags,
+                due_date=datetime.utcnow(),
+                success_count=0
+            )
+            db.add(card)
+            db.commit()
+            db.refresh(card)
+            
+            logger.info('Created new flashcard', extra={
+                'card_id': card.id,
+                'tags': tags
+            })
+            return card.id
+        except Exception as e:
             logger.error('Failed to create flashcard', extra={
                 'error': str(e),
                 'question': question,
                 'tags': tags
             })
             raise
+        finally:
+            db.close()
 
-    def update_card(self, card_id: int, question: str = None, answer: str = None, tags: list[str] = None) -> bool:
+    def update_card(self, card_id: int, question: str = None, answer: str = None, tags: List[str] = None) -> bool:
         """Update an existing flashcard."""
         try:
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.cursor()
-                updates = []
-                params = []
-                
-                if question is not None:
-                    updates.append('question = ?')
-                    params.append(question)
-                if answer is not None:
-                    updates.append('answer = ?')
-                    params.append(answer)
-                if tags is not None:
-                    updates.append('tags = ?')
-                    params.append(json.dumps(tags))
-                
-                if not updates:
-                    logger.warning('No updates provided for card', extra={'card_id': card_id})
-                    return False
-                
-                query = f'''
-                    UPDATE cards 
-                    SET {', '.join(updates)}
-                    WHERE id = ?
-                '''
-                params.append(card_id)
-                
-                cursor.execute(query, params)
-                conn.commit()
-                
-                if cursor.rowcount == 0:
-                    logger.warning('Card not found for update', extra={'card_id': card_id})
-                    return False
-                
-                logger.info('Updated flashcard', extra={
-                    'card_id': card_id,
-                    'updated_fields': [u.split(' = ')[0] for u in updates]
-                })
-                return True
-        except sqlite3.Error as e:
+            db = self._get_db()
+            card = db.query(Card).filter(Card.id == card_id).first()
+            
+            if not card:
+                logger.warning('Card not found for update', extra={'card_id': card_id})
+                return False
+            
+            updated_fields = []
+            if question is not None:
+                card.question = question
+                updated_fields.append('question')
+            if answer is not None:
+                card.answer = answer
+                updated_fields.append('answer')
+            if tags is not None:
+                card.tags = tags
+                updated_fields.append('tags')
+            
+            if not updated_fields:
+                logger.warning('No updates provided for card', extra={'card_id': card_id})
+                return False
+            
+            db.commit()
+            
+            logger.info('Updated flashcard', extra={
+                'card_id': card_id,
+                'updated_fields': updated_fields
+            })
+            return True
+        except Exception as e:
             logger.error('Failed to update flashcard', extra={
                 'error': str(e),
                 'card_id': card_id
             })
             raise
+        finally:
+            db.close()
 
     def get_card(self, card_id: int) -> dict:
         """Retrieve a flashcard by ID."""
         try:
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.cursor()
-                cursor.execute('''
-                    SELECT id, question, answer, success_count, due_date, tags
-                    FROM cards
-                    WHERE id = ?
-                ''', (card_id,))
-                
-                row = cursor.fetchone()
-                if not row:
-                    logger.warning('Card not found', extra={'card_id': card_id})
-                    return None
-                
-                card = {
-                    'id': row[0],
-                    'question': row[1],
-                    'answer': row[2],
-                    'success_count': row[3],
-                    'due_date': row[4],
-                    'tags': json.loads(row[5])
-                }
-                
-                logger.info('Retrieved flashcard', extra={'card_id': card_id})
-                return card
-        except sqlite3.Error as e:
+            db = self._get_db()
+            card = db.query(Card).filter(Card.id == card_id).first()
+            
+            if not card:
+                logger.warning('Card not found', extra={'card_id': card_id})
+                return None
+            
+            result = {
+                'id': card.id,
+                'question': card.question,
+                'answer': card.answer,
+                'success_count': card.success_count,
+                'due_date': card.due_date.isoformat(),
+                'tags': card.tags
+            }
+            
+            logger.info('Retrieved flashcard', extra={'card_id': card_id})
+            return result
+        except Exception as e:
             logger.error('Failed to retrieve flashcard', extra={
                 'error': str(e),
                 'card_id': card_id
             })
             raise
+        finally:
+            db.close()
 
     def set_last_card(self, card_id: int) -> bool:
         """Store the ID of the last reviewed card."""
         try:
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.cursor()
-                cursor.execute('''
-                    INSERT OR REPLACE INTO metadata (key, value)
-                    VALUES ('last_card_id', ?)
-                ''', (str(card_id),))
-                
-                conn.commit()
-                logger.info('Updated last card ID', extra={'card_id': card_id})
-                return True
-        except sqlite3.Error as e:
+            db = self._get_db()
+            metadata = db.query(Metadata).filter(Metadata.key == 'last_card_id').first()
+            
+            if metadata:
+                metadata.value = str(card_id)
+            else:
+                metadata = Metadata(key='last_card_id', value=str(card_id))
+                db.add(metadata)
+            
+            db.commit()
+            logger.info('Updated last card ID', extra={'card_id': card_id})
+            return True
+        except Exception as e:
             logger.error('Failed to set last card ID', extra={
                 'error': str(e),
                 'card_id': card_id
             })
             raise
+        finally:
+            db.close()
 
-    def get_last_card(self) -> int:
+    def get_last_card(self) -> Optional[int]:
         """Retrieve the ID of the last reviewed card."""
         try:
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.cursor()
-                cursor.execute('''
-                    SELECT value FROM metadata WHERE key = 'last_card_id'
-                ''')
-                
-                row = cursor.fetchone()
-                if not row:
-                    logger.info('No last card ID found')
-                    return None
-                
-                card_id = int(row[0])
-                logger.info('Retrieved last card ID', extra={'card_id': card_id})
-                return card_id
-        except sqlite3.Error as e:
+            db = self._get_db()
+            metadata = db.query(Metadata).filter(Metadata.key == 'last_card_id').first()
+            
+            if not metadata:
+                logger.info('No last card ID found')
+                return None
+            
+            card_id = int(metadata.value)
+            logger.info('Retrieved last card ID', extra={'card_id': card_id})
+            return card_id
+        except Exception as e:
             logger.error('Failed to get last card ID', extra={'error': str(e)})
             raise
+        finally:
+            db.close()
 
     def get_next_due_card(self, tag: Optional[str] = None) -> Optional[dict]:
         """Get the next due card, optionally filtered by tag."""
         try:
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.cursor()
-                
-                query = '''
-                    SELECT id, question, answer, success_count, due_date, tags
-                    FROM cards
-                    WHERE 1=1
-                '''
-                params = []
-                
-                if tag:
-                    query += " AND tags LIKE ?"
-                    params.append(f'%"{tag}"%')  # Look for tag in JSON array
-                
-                query += " ORDER BY due_date ASC LIMIT 1"
-                
-                cursor.execute(query, params)
-                row = cursor.fetchone()
-                
-                if not row:
-                    logger.info('No cards due', extra={'tag_filter': tag})
-                    return None
-                
-                card = {
-                    'id': row[0],
-                    'question': row[1],
-                    'answer': row[2],
-                    'success_count': row[3],
-                    'due_date': row[4],
-                    'tags': json.loads(row[5])
-                }
-                
-                self.set_last_card(card['id'])
-                logger.info('Retrieved next due card', extra={
-                    'card_id': card['id'],
-                    'tag_filter': tag
-                })
-                return card
-        except sqlite3.Error as e:
+            db = self._get_db()
+            query = db.query(Card).order_by(Card.due_date)
+            
+            if tag:
+                # PostgreSQL JSON array contains
+                query = query.filter(Card.tags.contains([tag]))
+            
+            card = query.first()
+            
+            if not card:
+                logger.info('No cards due', extra={'tag_filter': tag})
+                return None
+            
+            result = {
+                'id': card.id,
+                'question': card.question,
+                'answer': card.answer,
+                'success_count': card.success_count,
+                'due_date': card.due_date.isoformat(),
+                'tags': card.tags
+            }
+            
+            self.set_last_card(card.id)
+            logger.info('Retrieved next due card', extra={
+                'card_id': card.id,
+                'tag_filter': tag
+            })
+            return result
+        except Exception as e:
             logger.error('Failed to get next due card', extra={
                 'error': str(e),
                 'tag_filter': tag
             })
             raise
+        finally:
+            db.close()
 
-    def _calculate_next_due_date(self, success_count: int) -> str:
+    def _calculate_next_due_date(self, success_count: int) -> datetime:
         """Calculate the next due date based on success count."""
         interval_idx = min(success_count, len(self.INTERVALS) - 1)
         interval_days = self.INTERVALS[interval_idx]
-        next_due = datetime.utcnow() + timedelta(days=interval_days)
-        return next_due.isoformat()
+        return datetime.utcnow() + timedelta(days=interval_days)
 
     def mark_card_success(self, card_id: int) -> bool:
         """Mark a card as successfully reviewed and update its due date."""
         try:
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.cursor()
-                
-                # Get current success count
-                cursor.execute('SELECT success_count FROM cards WHERE id = ?', (card_id,))
-                row = cursor.fetchone()
-                if not row:
-                    logger.warning('Card not found for success marking', extra={'card_id': card_id})
-                    return False
-                
-                new_success_count = row[0] + 1
-                new_due_date = self._calculate_next_due_date(new_success_count)
-                
-                cursor.execute('''
-                    UPDATE cards
-                    SET success_count = ?, due_date = ?
-                    WHERE id = ?
-                ''', (new_success_count, new_due_date, card_id))
-                
-                conn.commit()
-                logger.info('Marked card as success', extra={
-                    'card_id': card_id,
-                    'new_success_count': new_success_count,
-                    'new_due_date': new_due_date
-                })
-                return True
-        except sqlite3.Error as e:
+            db = self._get_db()
+            card = db.query(Card).filter(Card.id == card_id).first()
+            
+            if not card:
+                logger.warning('Card not found for success marking', extra={'card_id': card_id})
+                return False
+            
+            card.success_count += 1
+            card.due_date = self._calculate_next_due_date(card.success_count)
+            
+            db.commit()
+            logger.info('Marked card as success', extra={
+                'card_id': card_id,
+                'new_success_count': card.success_count,
+                'new_due_date': card.due_date.isoformat()
+            })
+            return True
+        except Exception as e:
             logger.error('Failed to mark card as success', extra={
                 'error': str(e),
                 'card_id': card_id
             })
             raise
+        finally:
+            db.close()
 
     def mark_card_failure(self, card_id: int) -> bool:
         """Mark a card as failed and reset its progress."""
         try:
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.cursor()
-                
-                # Reset success count and calculate new due date
-                new_due_date = self._calculate_next_due_date(0)
-                
-                cursor.execute('''
-                    UPDATE cards
-                    SET success_count = 0, due_date = ?
-                    WHERE id = ?
-                ''', (new_due_date, card_id))
-                
-                conn.commit()
-                logger.info('Marked card as failure', extra={
-                    'card_id': card_id,
-                    'new_due_date': new_due_date
-                })
-                return True
-        except sqlite3.Error as e:
+            db = self._get_db()
+            card = db.query(Card).filter(Card.id == card_id).first()
+            
+            if not card:
+                logger.warning('Card not found for failure marking', extra={'card_id': card_id})
+                return False
+            
+            card.success_count = 0
+            card.due_date = self._calculate_next_due_date(0)
+            
+            db.commit()
+            logger.info('Marked card as failure', extra={
+                'card_id': card_id,
+                'new_due_date': card.due_date.isoformat()
+            })
+            return True
+        except Exception as e:
             logger.error('Failed to mark card as failure', extra={
                 'error': str(e),
                 'card_id': card_id
             })
             raise
+        finally:
+            db.close()
 
     def set_card_due_date(self, card_id: int, due_date: str) -> bool:
         """Manually set a card's due date."""
         try:
-            # Validate the date format
-            datetime.fromisoformat(due_date)
+            due_date_dt = datetime.fromisoformat(due_date)
+            db = self._get_db()
+            card = db.query(Card).filter(Card.id == card_id).first()
             
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.cursor()
-                cursor.execute('''
-                    UPDATE cards
-                    SET due_date = ?
-                    WHERE id = ?
-                ''', (due_date, card_id))
-                
-                conn.commit()
-                if cursor.rowcount == 0:
-                    logger.warning('Card not found for due date update', extra={'card_id': card_id})
-                    return False
-                
-                logger.info('Updated card due date', extra={
-                    'card_id': card_id,
-                    'new_due_date': due_date
-                })
-                return True
-        except (ValueError, sqlite3.Error) as e:
+            if not card:
+                logger.warning('Card not found for due date update', extra={'card_id': card_id})
+                return False
+            
+            card.due_date = due_date_dt
+            db.commit()
+            
+            logger.info('Updated card due date', extra={
+                'card_id': card_id,
+                'new_due_date': due_date
+            })
+            return True
+        except ValueError as e:
+            logger.error('Failed to set card due date - invalid date format', extra={
+                'error': str(e),
+                'card_id': card_id,
+                'due_date': due_date
+            })
+            raise
+        except Exception as e:
             logger.error('Failed to set card due date', extra={
                 'error': str(e),
                 'card_id': card_id,
                 'due_date': due_date
             })
             raise
+        finally:
+            db.close()
 
     def delete_card(self, card_id: int) -> bool:
         """Delete a flashcard."""
         try:
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.cursor()
-                cursor.execute('DELETE FROM cards WHERE id = ?', (card_id,))
-                
-                conn.commit()
-                if cursor.rowcount == 0:
-                    logger.warning('Card not found for deletion', extra={'card_id': card_id})
-                    return False
-                
-                logger.info('Deleted card', extra={'card_id': card_id})
-                return True
-        except sqlite3.Error as e:
+            db = self._get_db()
+            card = db.query(Card).filter(Card.id == card_id).first()
+            
+            if not card:
+                logger.warning('Card not found for deletion', extra={'card_id': card_id})
+                return False
+            
+            db.delete(card)
+            db.commit()
+            
+            logger.info('Deleted card', extra={'card_id': card_id})
+            return True
+        except Exception as e:
             logger.error('Failed to delete card', extra={
                 'error': str(e),
                 'card_id': card_id
             })
             raise
+        finally:
+            db.close()
