@@ -1,0 +1,132 @@
+{
+  "exported_at": "2025-02-10T04:05:15.682690",
+  "cards": [
+    {
+      "id": 2,
+      "question": "If a 10 kg object is accelerating at 5 m/s\u00b2, what is the net force acting on it?",
+      "answer": "50 N (Newton's Second Law: F = ma, so F = 10 kg \u00d7 5 m/s\u00b2).",
+      "success_count": 1,
+      "due_date": "2025-02-10T00:00:00",
+      "tags": [
+        "physics",
+        "newton",
+        "force"
+      ]
+    },
+    {
+      "id": 3,
+      "question": "What is Newton's First Law of Motion?",
+      "answer": "Newton's First Law states that an object at rest stays at rest and an object in motion stays in motion with the same speed and in the same direction unless acted upon by an unbalanced external force. This is also known as the Law of Inertia.",
+      "success_count": 0,
+      "due_date": "2025-02-10T02:18:39.412278",
+      "tags": [
+        "Physics",
+        "Newton's Laws"
+      ]
+    },
+    {
+      "id": 4,
+      "question": "What is Newton's Second Law of Motion?",
+      "answer": "Newton's Second Law states that the acceleration of an object depends on the net force acting on the object and its mass. Mathematically, it is expressed as F = ma, where F is force, m is mass, and a is acceleration.",
+      "success_count": 0,
+      "due_date": "2025-02-10T02:18:51.648011",
+      "tags": [
+        "Physics",
+        "Newton's Laws"
+      ]
+    },
+    {
+      "id": 5,
+      "question": "What is Newton's Third Law of Motion?",
+      "answer": "Newton's Third Law states that for every action, there is an equal and opposite reaction. This means that whenever an object exerts a force on another object, the second object exerts an equal force in the opposite direction.",
+      "success_count": 0,
+      "due_date": "2025-02-10T02:19:02.391934",
+      "tags": [
+        "Physics",
+        "Newton's Laws"
+      ]
+    },
+    {
+      "id": 6,
+      "question": "You are riding in a car that suddenly comes to a stop. Your body lurches forward even though the car has stopped. Which of Newton's Laws explains this, and why?",
+      "answer": "This is explained by Newton's First Law, also known as the Law of Inertia. An object in motion stays in motion unless acted upon by an unbalanced force. Your body continues moving forward because there is no force immediately stopping it, until the seatbelt or another force acts on you.",
+      "success_count": 0,
+      "due_date": "2025-02-10T02:19:43.894079",
+      "tags": [
+        "Physics",
+        "Newton's Laws",
+        "Practice Question"
+      ]
+    },
+    {
+      "id": 7,
+      "question": "A person pushes a shopping cart with a force of 20N, causing it to accelerate at 2 m/s\u00b2. What is the mass of the shopping cart?",
+      "answer": "Using Newton's Second Law, F = ma. We can solve for mass (m) by rearranging the equation: m = F / a. Substituting the values: m = 20N / 2 m/s\u00b2 = 10 kg. So, the mass of the shopping cart is 10 kg.",
+      "success_count": 0,
+      "due_date": "2025-02-10T02:19:53.205085",
+      "tags": [
+        "Physics",
+        "Newton's Laws",
+        "Practice Question"
+      ]
+    },
+    {
+      "id": 8,
+      "question": "When a bird pushes down on the air with its wings, it is able to fly upward. Which of Newton\u2019s Laws explains this, and how?",
+      "answer": "This is explained by Newton's Third Law, which states that for every action, there is an equal and opposite reaction. When the bird pushes down on the air (action), the air pushes back up on the bird with an equal force (reaction), allowing it to fly.",
+      "success_count": 0,
+      "due_date": "2025-02-10T02:19:56.073648",
+      "tags": [
+        "Physics",
+        "Newton's Laws",
+        "Practice Question"
+      ]
+    },
+    {
+      "id": 9,
+      "question": "What is Newton's First Law of Motion?",
+      "answer": "Newton's First Law states that an object at rest stays at rest, and an object in motion stays in motion with the same speed and in the same direction unless acted upon by an external force. This is also known as the law of inertia.",
+      "success_count": 0,
+      "due_date": "2025-02-10T03:12:44.121665",
+      "tags": [
+        "physics",
+        "laws of motion",
+        "Newton's laws",
+        "inertia",
+        "mechanics",
+        "science"
+      ]
+    },
+    {
+      "id": 10,
+      "question": "What is Newton's Second Law of Motion?",
+      "answer": "Newton's Second Law states that the acceleration of an object is directly proportional to the net force acting on it and inversely proportional to its mass. It is mathematically expressed as F = ma, where F is force, m is mass, and a is acceleration.",
+      "success_count": 0,
+      "due_date": "2025-02-10T03:13:11.673779",
+      "tags": [
+        "physics",
+        "laws of motion",
+        "Newton's laws",
+        "force",
+        "acceleration",
+        "mechanics",
+        "science"
+      ]
+    },
+    {
+      "id": 11,
+      "question": "What is Newton's Third Law of Motion?",
+      "answer": "Newton's Third Law states that for every action, there is an equal and opposite reaction. This means that forces always come in pairs: if object A exerts a force on object B, then object B exerts an equal and opposite force on object A.",
+      "success_count": 0,
+      "due_date": "2025-02-10T03:13:14.333820",
+      "tags": [
+        "physics",
+        "laws of motion",
+        "Newton's laws",
+        "action and reaction",
+        "mechanics",
+        "science"
+      ]
+    }
+  ]
+}

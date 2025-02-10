@@ -211,6 +211,25 @@ class DocumentDB:
             db.close()
             session.close()
     
+    def get_all_documents(self) -> List[Dict[str, Any]]:
+        """Get all documents"""
+        db = self._get_db()
+        try:
+            documents = db.query(Document).all()
+            return [{
+                'id': doc.id,
+                'title': doc.title,
+                'content': doc.content,
+                'tags': doc.tags,
+                'created_at': doc.created_at.isoformat(),
+                'updated_at': doc.updated_at.isoformat()
+            } for doc in documents]
+        except SQLAlchemyError as e:
+            logger.error(f"Error retrieving all documents: {str(e)}")
+            raise
+        finally:
+            db.close()
+
     def delete_document(self, title: str) -> bool:
         """Delete a document by title"""
         db = self._get_db()

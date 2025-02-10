@@ -1,12 +1,14 @@
-# Flashcards API
+# Flashcards and Knowledge Base API
 
-A simple spaced repetition flashcard API that helps you learn and retain information effectively. Cards are stored in a database (supports both SQLite and PostgreSQL) and served through a REST API.
+A simple spaced repetition flashcard API that helps you learn and retain information effectively, combined with a text knowledge base for storing and organizing information. Data is stored in a database (supports both SQLite and PostgreSQL) and served through a REST API.
 
 ## Features
 
 - Create and manage flashcards with questions and answers
 - Tag-based organization
 - Spaced repetition algorithm for optimal learning
+- Text knowledge base for storing markdown-formatted documents
+- Document organization with tags and full-text search
 - Secure API key authentication via query parameter
 - Persistent storage using SQLite (local) or PostgreSQL (production)
 - Comprehensive logging for debugging
@@ -47,7 +49,7 @@ Example: `http://localhost:8000/next_card?api_key=your-api-key-here`
 
 The API key must match the one set in your environment variables.
 
-## API Endpoints
+## Flashcard API Endpoints
 
 ### Create Card
 ```
@@ -104,8 +106,72 @@ Body:
 DELETE /delete_card/{card_id}?api_key=your-api-key-here
 ```
 
+## Document API Endpoints
+
+All document endpoints are under the `/documents` prefix.
+
+### Get All Titles
+```
+GET /documents/titles?api_key=your-api-key-here
+```
+Returns a list of all document titles.
+
+### Get Titles by Tags
+```
+GET /documents/titles/by_tags?tags=tag1,tag2&api_key=your-api-key-here
+```
+Returns titles of documents that have all specified tags.
+
+### Get Documents by Tags
+```
+GET /documents/by_tags?tags=tag1,tag2&api_key=your-api-key-here
+```
+Returns full documents that have all specified tags.
+
+### Get Document
+```
+GET /documents/{title}?api_key=your-api-key-here
+```
+Returns a specific document by its title.
+
+### Search Documents
+```
+GET /documents/search?query=keyword&api_key=your-api-key-here
+```
+Performs a full-text search and returns matching document titles.
+
+### Create Document
+```
+POST /documents?api_key=your-api-key-here
+
+Body:
+{
+    "title": "Meeting Notes - John Doe",
+    "content": "# Meeting with John\n\nDiscussed project timeline...",
+    "tags": ["meetings", "projects"]
+}
+```
+
+### Update Document
+```
+PUT /documents/{title}?api_key=your-api-key-here
+
+Body:
+{
+    "content": "Updated content...",
+    "tags": ["updated", "tags"]
+}
+```
+Both content and tags are optional. Only provided fields will be updated.
+
+### Delete Document
+```
+DELETE /documents/{title}?api_key=your-api-key-here
+```
+
 ## Example Usage
 
+### Flashcards Example
 ```python
 import requests
 import os
@@ -139,6 +205,40 @@ next_card = response.json()
 print(f"Next card: {next_card}")
 ```
 
+### Documents Example
+```python
+import requests
+import os
+from dotenv import load_dotenv
+
+# Load API key from environment
+load_dotenv()
+API_KEY = os.getenv("API_KEY")
+
+API_URL = "http://localhost:8000"  # Or your Render.com URL in production
+
+# Create a new document
+response = requests.post(
+    f"{API_URL}/documents",
+    params={"api_key": API_KEY},
+    json={
+        "title": "Project Ideas",
+        "content": "# Future Projects\n\n1. Build a task manager\n2. Create a blog",
+        "tags": ["projects", "ideas"]
+    }
+)
+document = response.json()
+print(f"Created document: {document}")
+
+# Search documents
+response = requests.get(
+    f"{API_URL}/documents/search",
+    params={"api_key": API_KEY, "query": "task manager"}
+)
+results = response.json()
+print(f"Search results: {results}")
+```
+
 ## Deployment
 
 Deploy to Render.com with these environment variables:
@@ -166,27 +266,30 @@ The API uses a spaced repetition algorithm with the following intervals (in days
 
 ## Logging
 
-The API maintains two log files:
+The API maintains three log files:
 - `api.log`: API request/response logs
-- `flashcards.log`: Database operation logs
+- `flashcards.log`: Flashcard database operation logs
+- `documents_api.log`: Document API operation logs
 
 ## Backup and Restore
 
-The API provides endpoints and a command-line script to backup and restore your flashcards.
+The API provides endpoints and a command-line script to backup and restore both flashcards and documents.
 
 ### API Endpoints
 
-#### Download Cards
+#### Download Cards/Documents
 ```
 GET /download_cards?api_key=your-api-key-here
+GET /documents/download?api_key=your-api-key-here
 ```
-Downloads all cards from the database.
+Downloads all cards or documents from the database.
 
-#### Upload Cards
+#### Upload Cards/Documents
 ```
 POST /upload_cards?api_key=your-api-key-here
+POST /documents/upload?api_key=your-api-key-here
 
-Body:
+Body for cards:
 {
     "cards": [
         {
@@ -200,30 +303,41 @@ Body:
         ...
     ]
 }
+
+Body for documents:
+{
+    "documents": [
+        {
+            "id": 1,
+            "title": "Meeting Notes",
+            "content": "# Meeting Notes\n\nDiscussion points...",
+            "tags": ["meetings", "notes"],
+            "created_at": "2025-02-09T00:00:00.000000",
+            "updated_at": "2025-02-09T00:00:00.000000"
+        },
+        ...
+    ]
+}
 ```
-Uploads cards to the database. Existing cards (matched by ID) will be updated, and new cards will be inserted.
+Uploads data to the database. Existing items (matched by ID) will be updated, and new items will be inserted.
 
 ### Command-Line Script
 
-A Python script is provided in the `scripts` directory to easily backup and restore your flashcards:
+A Python script is provided in the `scripts` directory to easily backup and restore your data:
 
-1. Set up environment variables in `.env`:
+Download all data to files:
 ```bash
-API_KEY=your-api-key-here
-API_URL=http://localhost:8000  # Or your production URL
+python scripts/manage_data.py cards download cards_backup.json --api-key your-api-key-here
+python scripts/manage_data.py documents download documents_backup.json --api-key your-api-key-here
 ```
 
-2. Download all cards to a file:
+Upload data from backup files:
 ```bash
-python scripts/manage_cards.py download cards_backup.json
+python scripts/manage_data.py cards upload cards_backup.json --api-key your-api-key-here
+python scripts/manage_data.py documents upload documents_backup.json --api-key your-api-key-here
 ```
 
-3. Upload cards from a backup file:
-```bash
-python scripts/manage_cards.py upload cards_backup.json
-```
-
-The backup file includes a timestamp and all card data in JSON format. This is useful for:
+The backup files include timestamps and all data in JSON format. This is useful for:
 - Creating backups before server migrations
-- Transferring cards between instances
-- Keeping a local backup of your flashcards
+- Transferring data between instances
+- Keeping local backups of your data

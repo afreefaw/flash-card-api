@@ -45,6 +45,9 @@ class DocumentResponse(DocumentBase):
     created_at: str
     updated_at: str
 
+class DocumentUpload(BaseModel):
+    documents: List[DocumentResponse]
+
 # Authentication function
 def verify_api_key(api_key: str) -> bool:
     if api_key != API_KEY:
@@ -172,6 +175,45 @@ async def delete_document(title: str, api_key: str):
     except Exception as e:
         doc_api_logger.error('Failed to delete document', extra={'error': str(e), 'title': title})
         raise HTTPException(status_code=500, detail="Failed to delete document")
+
+@router.get("/download")
+async def download_documents(api_key: str):
+    """Download all documents from the database."""
+    verify_api_key(api_key)
+    try:
+        documents = db.get_all_documents()
+        return {"documents": documents}
+    except Exception as e:
+        doc_api_logger.error('Failed to download documents', extra={'error': str(e)})
+        raise HTTPException(status_code=500, detail="Failed to download documents")
+
+@router.post("/upload")
+async def upload_documents(documents: DocumentUpload, api_key: str):
+    """Upload documents to the database. Existing documents will be updated."""
+    verify_api_key(api_key)
+    try:
+        inserted = 0
+        updated = 0
+        for doc in documents.documents:
+            existing = db.get_document(doc.title)
+            if existing:
+                db.update_document(
+                    title=doc.title,
+                    content=doc.content,
+                    tags=doc.tags
+                )
+                updated += 1
+            else:
+                db.create_document(
+                    title=doc.title,
+                    content=doc.content,
+                    tags=doc.tags
+                )
+                inserted += 1
+        return {"inserted": inserted, "updated": updated}
+    except Exception as e:
+        doc_api_logger.error('Failed to upload documents', extra={'error': str(e)})
+        raise HTTPException(status_code=500, detail="Failed to upload documents")
 
 # Function to get the router
 def get_document_router():
