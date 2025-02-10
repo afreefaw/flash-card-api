@@ -17,15 +17,10 @@ file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(mes
 logger.addHandler(file_handler)
 
 # Database setup
-DATABASE_URL = os.getenv("DATABASE_URL")
-if not DATABASE_URL:
-    raise ValueError("DATABASE_URL environment variable must be set")
-
-# Convert postgres:// to postgresql:// for SQLAlchemy
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///documents.db")
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
-logger.info(f"Initializing database with URL: {DATABASE_URL}")
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
@@ -41,36 +36,21 @@ class Document(Base):
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+# Create tables
+Base.metadata.create_all(bind=engine)
+
 class DocumentDB:
     def __init__(self, db_url=None):
-        """Initialize database connection and ensure tables exist"""
-        try:
-            if db_url:
-                self.engine = create_engine(db_url)
-            else:
-                self.engine = engine
-            
+        """Initialize database connection"""
+        if db_url:
+            self.engine = create_engine(db_url)
             self.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=self.engine)
-            
-            # Create tables if they don't exist
-            logger.info("Ensuring database tables exist...")
-            Base.metadata.create_all(bind=self.engine)
-            
-            # Test database connection and verify tables
-            with self.SessionLocal() as session:
-                # Check connection
-                result = session.execute(text("SELECT version()")).scalar()
-                logger.info(f"Connected to database: {result}")
-                
-                # Verify documents table
-                result = session.execute(text("SELECT COUNT(*) FROM documents")).scalar()
-                logger.info(f"Documents table verified - contains {result} records")
-            
-            logger.info(f"Initialized DocumentDB with {db_url or DATABASE_URL}")
-        except Exception as e:
-            import traceback
-            logger.error(f"Failed to initialize database: {str(e)}\nTraceback:\n{traceback.format_exc()}")
-            raise
+            self.is_sqlite = db_url.startswith('sqlite')
+        else:
+            self.engine = engine
+            self.SessionLocal = SessionLocal
+            self.is_sqlite = DATABASE_URL.startswith('sqlite')
+        logger.info(f"Initialized DocumentDB with {db_url or DATABASE_URL} (Using {'SQLite' if self.is_sqlite else 'PostgreSQL'})")
     
     def _get_db(self):
         db = self.SessionLocal()
