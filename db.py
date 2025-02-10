@@ -404,37 +404,75 @@ class FlashcardsDB:
             inserted = 0
             updated = 0
             
-            for card_data in cards:
-                card = db.query(Card).filter(Card.id == card_data.get('id')).first()
-                
-                if card:
-                    # Update existing card
-                    card.question = card_data['question']
-                    card.answer = card_data['answer']
-                    card.success_count = card_data['success_count']
-                    card.due_date = datetime.fromisoformat(card_data['due_date'])
-                    card.tags = card_data['tags']
-                    updated += 1
-                else:
-                    # Create new card
-                    new_card = Card(
-                        question=card_data['question'],
-                        answer=card_data['answer'],
-                        success_count=card_data['success_count'],
-                        due_date=datetime.fromisoformat(card_data['due_date']),
-                        tags=card_data['tags']
-                    )
-                    db.add(new_card)
-                    inserted += 1
+            logger.info('Starting bulk upsert', extra={
+                'total_cards': len(cards),
+                'first_card_id': cards[0].get('id') if cards else None
+            })
+            
+            for idx, card_data in enumerate(cards):
+                try:
+                    card_id = card_data.get('id')
+                    logger.debug(f'Processing card {idx+1}/{len(cards)}', extra={
+                        'card_id': card_id,
+                        'has_question': 'question' in card_data,
+                        'has_answer': 'answer' in card_data,
+                        'has_tags': 'tags' in card_data,
+                        'has_due_date': 'due_date' in card_data,
+                        'has_success_count': 'success_count' in card_data
+                    })
+                    
+                    card = db.query(Card).filter(Card.id == card_id).first()
+                    
+                    if card:
+                        # Update existing card
+                        logger.debug(f'Updating existing card', extra={
+                            'card_id': card_id,
+                            'old_due_date': card.due_date.isoformat(),
+                            'new_due_date': card_data['due_date']
+                        })
+                        card.question = card_data['question']
+                        card.answer = card_data['answer']
+                        card.success_count = card_data['success_count']
+                        card.due_date = datetime.fromisoformat(card_data['due_date'])
+                        card.tags = card_data['tags']
+                        updated += 1
+                    else:
+                        # Create new card
+                        logger.debug(f'Creating new card', extra={
+                            'due_date': card_data['due_date'],
+                            'tag_count': len(card_data['tags'])
+                        })
+                        new_card = Card(
+                            question=card_data['question'],
+                            answer=card_data['answer'],
+                            success_count=card_data['success_count'],
+                            due_date=datetime.fromisoformat(card_data['due_date']),
+                            tags=card_data['tags']
+                        )
+                        db.add(new_card)
+                        inserted += 1
+                except Exception as card_error:
+                    logger.error('Error processing individual card', extra={
+                        'card_index': idx,
+                        'card_id': card_data.get('id'),
+                        'error': str(card_error),
+                        'error_type': type(card_error).__name__
+                    })
+                    raise
             
             db.commit()
             logger.info('Bulk upsert completed', extra={
                 'inserted': inserted,
-                'updated': updated
+                'updated': updated,
+                'total_processed': inserted + updated
             })
             return {'inserted': inserted, 'updated': updated}
         except Exception as e:
-            logger.error('Failed to bulk upsert cards', extra={'error': str(e)})
+            logger.error('Failed to bulk upsert cards', extra={
+                'error': str(e),
+                'error_type': type(e).__name__,
+                'total_cards': len(cards) if cards else 0
+            })
             raise
         finally:
             db.close()

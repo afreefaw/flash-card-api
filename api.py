@@ -219,14 +219,38 @@ class BulkCardsUpload(BaseModel):
 async def upload_cards(cards_data: BulkCardsUpload, api_key: str):
     verify_api_key(api_key)
     try:
+        api_logger.info('Starting cards upload', extra={
+            'card_count': len(cards_data.cards),
+            'first_card_id': cards_data.cards[0].id if cards_data.cards else None
+        })
+        
+        # Log the first card's data for debugging
+        if cards_data.cards:
+            first_card = cards_data.cards[0]
+            api_logger.info('First card data', extra={
+                'id': first_card.id,
+                'question': first_card.question,
+                'success_count': first_card.success_count,
+                'due_date': first_card.due_date,
+                'tag_count': len(first_card.tags)
+            })
+        
         result = db.bulk_upsert_cards(cards_data.cards)
+        api_logger.info('Cards upload completed', extra={
+            'inserted': result['inserted'],
+            'updated': result['updated']
+        })
         return {
             "message": f"Successfully processed cards",
             "inserted": result['inserted'],
             "updated": result['updated']
         }
     except Exception as e:
-        api_logger.error('Failed to upload cards', extra={'error': str(e)})
+        api_logger.error('Failed to upload cards', extra={
+            'error': str(e),
+            'error_type': type(e).__name__,
+            'card_count': len(cards_data.cards) if cards_data else 0
+        })
         raise HTTPException(status_code=500, detail="Failed to upload cards")
 
 # Mount the document API router
