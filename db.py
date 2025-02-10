@@ -459,11 +459,14 @@ class FlashcardsDB:
                         db.add(new_card)
                         inserted += 1
                 except Exception as card_error:
+                    import traceback
                     logger.error('Error processing individual card', extra={
                         'card_index': idx,
                         'card_id': card_data.get('id'),
                         'error': str(card_error),
-                        'error_type': type(card_error).__name__
+                        'error_type': type(card_error).__name__,
+                        'traceback': traceback.format_exc(),
+                        'card_data': str(card_data)
                     })
                     raise
             
@@ -475,10 +478,13 @@ class FlashcardsDB:
             })
             return {'inserted': inserted, 'updated': updated}
         except Exception as e:
+            import traceback
             logger.error('Failed to bulk upsert cards', extra={
                 'error': str(e),
                 'error_type': type(e).__name__,
-                'total_cards': len(cards) if cards else 0
+                'traceback': traceback.format_exc(),
+                'total_cards': len(cards) if cards else 0,
+                'first_card_data': str(cards[0]) if cards else None
             })
             raise
         finally:

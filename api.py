@@ -253,12 +253,14 @@ async def upload_cards(cards_data: BulkCardsUpload, api_key: str):
             "updated": result['updated']
         }
     except Exception as e:
+        import traceback
         api_logger.error('Failed to upload cards', extra={
             'error': str(e),
             'error_type': type(e).__name__,
+            'traceback': traceback.format_exc(),
             'card_count': len(cards_data.cards) if cards_data else 0
         })
-        raise HTTPException(status_code=500, detail="Failed to upload cards")
+        raise HTTPException(status_code=500, detail=f"Failed to upload cards: {str(e)}")
 
 # Mount the document API router
 app.include_router(get_document_router())
