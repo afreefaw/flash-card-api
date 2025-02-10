@@ -50,7 +50,7 @@ class DocumentDB:
             self.engine = engine
             self.SessionLocal = SessionLocal
             self.is_sqlite = DATABASE_URL.startswith('sqlite')
-        logger.info(f"Initialized DocumentDB with {db_url or DATABASE_URL}")
+        logger.info(f"Initialized DocumentDB with {db_url or DATABASE_URL} (Using {'SQLite' if self.is_sqlite else 'PostgreSQL'})")
     
     def _get_db(self):
         db = self.SessionLocal()
@@ -183,13 +183,18 @@ class DocumentDB:
         finally:
             db.close()
     def update_document(self, title: str, content: Optional[str] = None,
-                       tags: Optional[List[str]] = None) -> bool:
+                        tags: Optional[List[str]] = None) -> bool:
         """Update an existing document"""
         db = self._get_db()
         try:
+            logger.info(f"Attempting to update document. Title: {title}, Content length: {len(content) if content else 0}, Tags: {tags}")
+            
             document = db.query(Document).filter(Document.title == title).first()
             if not document:
+                logger.warning(f"Document not found with title: {title}")
                 return False
+            
+            logger.info(f"Found document. Current state - ID: {document.id}, Title: {document.title}, Tags: {document.tags}")
             
             if content is not None:
                 document.content = content
@@ -197,12 +202,20 @@ class DocumentDB:
                 document.tags = tags
             
             document.updated_at = datetime.utcnow()
+            
+            logger.info(f"Committing changes - New content length: {len(document.content)}, New tags: {document.tags}")
             db.commit()
-            logger.info(f"Updated document: {title}")
+            logger.info(f"Successfully updated document: {title}")
             return True
         except SQLAlchemyError as e:
             db.rollback()
-            logger.error(f"Error updating document: {str(e)}")
+            import traceback
+            logger.error(f"SQLAlchemy error updating document: {str(e)}\nTraceback:\n{traceback.format_exc()}")
+            raise
+        except Exception as e:
+            db.rollback()
+            import traceback
+            logger.error(f"Unexpected error updating document: {str(e)}\nTraceback:\n{traceback.format_exc()}")
             raise
         finally:
             db.close()

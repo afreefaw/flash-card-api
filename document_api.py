@@ -149,20 +149,53 @@ async def create_document(document: DocumentBase, api_key: str):
 async def update_document(title: str, document_update: DocumentUpdate, api_key: str):
     verify_api_key(api_key)
     try:
+        doc_api_logger.info('Updating document', extra={
+            'title': title,
+            'content_length': len(document_update.content) if document_update.content else 0,
+            'tags': document_update.tags
+        })
+        
+        # First check if document exists
+        existing_doc = db.get_document(title)
+        if not existing_doc:
+            doc_api_logger.warning('Document not found for update', extra={'title': title})
+            raise HTTPException(status_code=404, detail="Document not found")
+            
+        doc_api_logger.info('Found existing document', extra={
+            'title': title,
+            'current_tags': existing_doc['tags']
+        })
+        
         success = db.update_document(
             title=title,
             content=document_update.content,
             tags=document_update.tags
         )
+        
         if not success:
-            raise HTTPException(status_code=404, detail="Document not found")
+            doc_api_logger.error('Update operation returned false', extra={'title': title})
+            raise HTTPException(status_code=500, detail="Failed to update document")
+            
         updated_doc = db.get_document(title)
+        doc_api_logger.info('Document successfully updated', extra={
+            'title': title,
+            'new_content_length': len(updated_doc['content']),
+            'new_tags': updated_doc['tags']
+        })
         return updated_doc
     except HTTPException:
         raise
     except Exception as e:
-        doc_api_logger.error('Failed to update document', extra={'error': str(e), 'title': title})
-        raise HTTPException(status_code=500, detail="Failed to update document")
+        import traceback
+        doc_api_logger.error('Failed to update document', extra={
+            'error': str(e),
+            'error_type': type(e).__name__,
+            'traceback': traceback.format_exc(),
+            'title': title,
+            'content_length': len(document_update.content) if document_update.content else 0,
+            'tags': document_update.tags
+        })
+        raise HTTPException(status_code=500, detail=f"Failed to update document: {str(e)}")
 
 @router.delete("/{title}")
 async def delete_document(title: str, api_key: str):
