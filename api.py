@@ -201,6 +201,33 @@ async def delete_card(card_id: int, api_key: str):
         api_logger.error('Failed to delete card', extra={'error': str(e), 'card_id': card_id})
         raise HTTPException(status_code=500, detail="Failed to delete card")
 
+@app.get("/download_cards")
+async def download_cards(api_key: str):
+    verify_api_key(api_key)
+    try:
+        cards = db.get_all_cards()
+        return {"cards": cards}
+    except Exception as e:
+        api_logger.error('Failed to download cards', extra={'error': str(e)})
+        raise HTTPException(status_code=500, detail="Failed to download cards")
+
+class BulkCardsUpload(BaseModel):
+    cards: List[CardResponse]
+
+@app.post("/upload_cards")
+async def upload_cards(cards_data: BulkCardsUpload, api_key: str):
+    verify_api_key(api_key)
+    try:
+        result = db.bulk_upsert_cards(cards_data.cards)
+        return {
+            "message": f"Successfully processed cards",
+            "inserted": result['inserted'],
+            "updated": result['updated']
+        }
+    except Exception as e:
+        api_logger.error('Failed to upload cards', extra={'error': str(e)})
+        raise HTTPException(status_code=500, detail="Failed to upload cards")
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)

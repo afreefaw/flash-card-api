@@ -169,3 +169,61 @@ The API uses a spaced repetition algorithm with the following intervals (in days
 The API maintains two log files:
 - `api.log`: API request/response logs
 - `flashcards.log`: Database operation logs
+
+## Backup and Restore
+
+The API provides endpoints and a command-line script to backup and restore your flashcards.
+
+### API Endpoints
+
+#### Download Cards
+```
+GET /download_cards?api_key=your-api-key-here
+```
+Downloads all cards from the database.
+
+#### Upload Cards
+```
+POST /upload_cards?api_key=your-api-key-here
+
+Body:
+{
+    "cards": [
+        {
+            "id": 1,
+            "question": "What is the capital of France?",
+            "answer": "Paris",
+            "tags": ["geography", "europe"],
+            "success_count": 3,
+            "due_date": "2025-02-10T00:00:00.000000"
+        },
+        ...
+    ]
+}
+```
+Uploads cards to the database. Existing cards (matched by ID) will be updated, and new cards will be inserted.
+
+### Command-Line Script
+
+A Python script is provided in the `scripts` directory to easily backup and restore your flashcards:
+
+1. Set up environment variables in `.env`:
+```bash
+API_KEY=your-api-key-here
+API_URL=http://localhost:8000  # Or your production URL
+```
+
+2. Download all cards to a file:
+```bash
+python scripts/manage_cards.py download cards_backup.json
+```
+
+3. Upload cards from a backup file:
+```bash
+python scripts/manage_cards.py upload cards_backup.json
+```
+
+The backup file includes a timestamp and all card data in JSON format. This is useful for:
+- Creating backups before server migrations
+- Transferring cards between instances
+- Keeping a local backup of your flashcards

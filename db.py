@@ -373,3 +373,68 @@ class FlashcardsDB:
             raise
         finally:
             db.close()
+
+    def get_all_cards(self) -> List[dict]:
+        """Get all flashcards in the database."""
+        try:
+            db = self._get_db()
+            cards = db.query(Card).all()
+            
+            result = [{
+                'id': card.id,
+                'question': card.question,
+                'answer': card.answer,
+                'success_count': card.success_count,
+                'due_date': card.due_date.isoformat(),
+                'tags': card.tags
+            } for card in cards]
+            
+            logger.info('Retrieved all flashcards', extra={'count': len(result)})
+            return result
+        except Exception as e:
+            logger.error('Failed to retrieve all flashcards', extra={'error': str(e)})
+            raise
+        finally:
+            db.close()
+
+    def bulk_upsert_cards(self, cards: List[dict]) -> dict:
+        """Insert or update multiple cards at once."""
+        try:
+            db = self._get_db()
+            inserted = 0
+            updated = 0
+            
+            for card_data in cards:
+                card = db.query(Card).filter(Card.id == card_data.get('id')).first()
+                
+                if card:
+                    # Update existing card
+                    card.question = card_data['question']
+                    card.answer = card_data['answer']
+                    card.success_count = card_data['success_count']
+                    card.due_date = datetime.fromisoformat(card_data['due_date'])
+                    card.tags = card_data['tags']
+                    updated += 1
+                else:
+                    # Create new card
+                    new_card = Card(
+                        question=card_data['question'],
+                        answer=card_data['answer'],
+                        success_count=card_data['success_count'],
+                        due_date=datetime.fromisoformat(card_data['due_date']),
+                        tags=card_data['tags']
+                    )
+                    db.add(new_card)
+                    inserted += 1
+            
+            db.commit()
+            logger.info('Bulk upsert completed', extra={
+                'inserted': inserted,
+                'updated': updated
+            })
+            return {'inserted': inserted, 'updated': updated}
+        except Exception as e:
+            logger.error('Failed to bulk upsert cards', extra={'error': str(e)})
+            raise
+        finally:
+            db.close()
