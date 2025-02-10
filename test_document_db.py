@@ -5,19 +5,20 @@ from sqlalchemy.exc import SQLAlchemyError
 
 def setup_test_db():
     """Set up a fresh test database"""
-    db_path = "test_documents.db"
+    db_path = "test_flashcards.db"
     if os.path.exists(db_path):
         try:
             os.remove(db_path)
         except PermissionError:
             # If file is locked, use a different name
-            db_path = "test_documents_new.db"
+            db_path = "test_flashcards_new.db"
     return DocumentDB(f'sqlite:///{db_path}')
 
 def test_database_operations():
     """Test all document database operations"""
     # Initialize database with SQLite for testing
-    with setup_test_db() as db:
+    db = setup_test_db()
+    try:
         # Test creating a document
         doc_id = db.create_document(
             title="Python Programming",
@@ -91,10 +92,20 @@ def test_database_operations():
         if deleted_doc is not None:
             raise AssertionError("Document still exists after deletion")
         print("Verified document deletion")
+    except Exception as e:
+        print(f"Test failed: {str(e)}")
+        raise
+    finally:
+        if os.path.exists("test_flashcards.db"):
+            try:
+                os.remove("test_flashcards.db")
+            except PermissionError:
+                pass
 
 def test_error_handling():
     """Test error handling in database operations"""
-    with setup_test_db() as db:
+    db = setup_test_db()
+    try:
         # Test duplicate title
         doc_id = db.create_document(
             title="Test Document",
@@ -121,6 +132,15 @@ def test_error_handling():
         if db.delete_document("NonexistentDoc"):
             raise AssertionError("Delete should fail for nonexistent document")
         print("Invalid deletion test passed")
+    except Exception as e:
+        print(f"Test failed: {str(e)}")
+        raise
+    finally:
+        if os.path.exists("test_flashcards.db"):
+            try:
+                os.remove("test_flashcards.db")
+            except PermissionError:
+                pass
 
 if __name__ == "__main__":
     # Set up console logging for test output

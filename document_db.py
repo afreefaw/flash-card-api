@@ -17,7 +17,7 @@ file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(mes
 logger.addHandler(file_handler)
 
 # Database setup
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///documents.db")
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///flashcards.db")
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
@@ -50,6 +50,8 @@ class DocumentDB:
             self.engine = engine
             self.SessionLocal = SessionLocal
             self.is_sqlite = DATABASE_URL.startswith('sqlite')
+        # Create tables for this database connection
+        Base.metadata.create_all(bind=self.engine)
         logger.info(f"Initialized DocumentDB with {db_url or DATABASE_URL} (Using {'SQLite' if self.is_sqlite else 'PostgreSQL'})")
     
     def _get_db(self):
