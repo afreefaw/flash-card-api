@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Depends, Header, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from typing import List, Optional
@@ -46,6 +46,9 @@ class CardResponse(CardBase):
     success_count: int
     due_date: str
 
+class DueDateUpdate(BaseModel):
+    due_date: str
+
 # Middleware for logging
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
@@ -64,15 +67,15 @@ async def log_requests(request: Request, call_next):
     )
     return response
 
-# Authentication dependency
-async def verify_api_key(x_api_key: str = Header(...)):
-    if x_api_key != API_KEY:
-        api_logger.warning('Authentication failed', extra={'provided_key': x_api_key})
+# Authentication function
+def verify_api_key(api_key: str) -> bool:
+    if api_key != API_KEY:
+        api_logger.warning('Authentication failed', extra={'provided_key': api_key})
         raise HTTPException(
             status_code=401,
             detail="Invalid API key"
         )
-    return x_api_key
+    return True
 
 # Error handler
 @app.exception_handler(Exception)
@@ -91,8 +94,9 @@ async def global_exception_handler(request: Request, exc: Exception):
     )
 
 # Endpoints
-@app.post("/create_card", response_model=CardResponse, dependencies=[Depends(verify_api_key)])
-async def create_card(card: CardBase):
+@app.post("/create_card", response_model=CardResponse)
+async def create_card(card: CardBase, api_key: str):
+    verify_api_key(api_key)
     try:
         card_id = db.create_card(
             question=card.question,
@@ -104,8 +108,9 @@ async def create_card(card: CardBase):
         api_logger.error('Failed to create card', extra={'error': str(e)})
         raise HTTPException(status_code=500, detail="Failed to create card")
 
-@app.put("/update_card/{card_id}", response_model=CardResponse, dependencies=[Depends(verify_api_key)])
-async def update_card(card_id: int, card_update: CardUpdate):
+@app.put("/update_card/{card_id}", response_model=CardResponse)
+async def update_card(card_id: int, card_update: CardUpdate, api_key: str):
+    verify_api_key(api_key)
     try:
         success = db.update_card(
             card_id=card_id,
@@ -122,8 +127,9 @@ async def update_card(card_id: int, card_update: CardUpdate):
         api_logger.error('Failed to update card', extra={'error': str(e), 'card_id': card_id})
         raise HTTPException(status_code=500, detail="Failed to update card")
 
-@app.get("/next_card", response_model=CardResponse, dependencies=[Depends(verify_api_key)])
-async def get_next_card():
+@app.get("/next_card", response_model=CardResponse)
+async def get_next_card(api_key: str):
+    verify_api_key(api_key)
     try:
         card = db.get_next_due_card()
         if not card:
@@ -133,8 +139,9 @@ async def get_next_card():
         api_logger.error('Failed to get next card', extra={'error': str(e)})
         raise HTTPException(status_code=500, detail="Failed to get next card")
 
-@app.get("/next_card_by_tag", response_model=CardResponse, dependencies=[Depends(verify_api_key)])
-async def get_next_card_by_tag(tag: str):
+@app.get("/next_card_by_tag", response_model=CardResponse)
+async def get_next_card_by_tag(tag: str, api_key: str):
+    verify_api_key(api_key)
     try:
         card = db.get_next_due_card(tag=tag)
         if not card:
@@ -144,8 +151,9 @@ async def get_next_card_by_tag(tag: str):
         api_logger.error('Failed to get next card by tag', extra={'error': str(e), 'tag': tag})
         raise HTTPException(status_code=500, detail="Failed to get next card by tag")
 
-@app.post("/mark_success/{card_id}", dependencies=[Depends(verify_api_key)])
-async def mark_success(card_id: int):
+@app.post("/mark_success/{card_id}")
+async def mark_success(card_id: int, api_key: str):
+    verify_api_key(api_key)
     try:
         success = db.mark_card_success(card_id)
         if not success:
@@ -155,8 +163,9 @@ async def mark_success(card_id: int):
         api_logger.error('Failed to mark card as success', extra={'error': str(e), 'card_id': card_id})
         raise HTTPException(status_code=500, detail="Failed to mark card as success")
 
-@app.post("/mark_failure/{card_id}", dependencies=[Depends(verify_api_key)])
-async def mark_failure(card_id: int):
+@app.post("/mark_failure/{card_id}")
+async def mark_failure(card_id: int, api_key: str):
+    verify_api_key(api_key)
     try:
         success = db.mark_card_failure(card_id)
         if not success:
@@ -166,11 +175,9 @@ async def mark_failure(card_id: int):
         api_logger.error('Failed to mark card as failure', extra={'error': str(e), 'card_id': card_id})
         raise HTTPException(status_code=500, detail="Failed to mark card as failure")
 
-class DueDateUpdate(BaseModel):
-    due_date: str
-
-@app.post("/set_due_date/{card_id}", dependencies=[Depends(verify_api_key)])
-async def set_due_date(card_id: int, due_date_update: DueDateUpdate):
+@app.post("/set_due_date/{card_id}")
+async def set_due_date(card_id: int, due_date_update: DueDateUpdate, api_key: str):
+    verify_api_key(api_key)
     try:
         success = db.set_card_due_date(card_id, due_date_update.due_date)
         if not success:
@@ -182,8 +189,9 @@ async def set_due_date(card_id: int, due_date_update: DueDateUpdate):
         api_logger.error('Failed to set card due date', extra={'error': str(e), 'card_id': card_id})
         raise HTTPException(status_code=500, detail="Failed to set card due date")
 
-@app.delete("/delete_card/{card_id}", dependencies=[Depends(verify_api_key)])
-async def delete_card(card_id: int):
+@app.delete("/delete_card/{card_id}")
+async def delete_card(card_id: int, api_key: str):
+    verify_api_key(api_key)
     try:
         success = db.delete_card(card_id)
         if not success:

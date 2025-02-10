@@ -5,14 +5,14 @@ from typing import Optional
 class FlashcardsAPITest:
     def __init__(self, base_url: str = "http://localhost:8000", api_key: str = "your-secret-key-here"):
         self.base_url = base_url
-        self.headers = {"X-API-Key": api_key}
+        self.api_key = api_key
     
     def create_card(self, question: str, answer: str, tags: list[str]) -> Optional[dict]:
         """Test creating a new card"""
         try:
             response = requests.post(
                 f"{self.base_url}/create_card",
-                headers=self.headers,
+                params={"api_key": self.api_key},
                 json={
                     "question": question,
                     "answer": answer,
@@ -41,7 +41,7 @@ class FlashcardsAPITest:
         try:
             response = requests.put(
                 f"{self.base_url}/update_card/{card_id}",
-                headers=self.headers,
+                params={"api_key": self.api_key},
                 json=update_data
             )
             response.raise_for_status()
@@ -57,7 +57,7 @@ class FlashcardsAPITest:
         try:
             response = requests.post(
                 f"{self.base_url}/create_card",
-                headers={"X-API-Key": "invalid-key"},
+                params={"api_key": "invalid-key"},
                 json={
                     "question": "Test question",
                     "answer": "Test answer",
@@ -79,7 +79,7 @@ class FlashcardsAPITest:
         try:
             response = requests.delete(
                 f"{self.base_url}/delete_card/{card_id}",
-                headers=self.headers
+                params={"api_key": self.api_key}
             )
             response.raise_for_status()
             return True
