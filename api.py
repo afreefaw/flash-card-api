@@ -6,6 +6,7 @@ import logging
 from pythonjsonlogger import jsonlogger
 import time
 from db import FlashcardsDB
+from document_api import get_document_router
 import os
 from dotenv import load_dotenv
 
@@ -227,6 +228,9 @@ async def upload_cards(cards_data: BulkCardsUpload, api_key: str):
     except Exception as e:
         api_logger.error('Failed to upload cards', extra={'error': str(e)})
         raise HTTPException(status_code=500, detail="Failed to upload cards")
+
+# Mount the document API router
+app.include_router(get_document_router())
 
 if __name__ == "__main__":
     import uvicorn

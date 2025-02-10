@@ -1,115 +1,123 @@
-Overall concept:
+# Text Knowledge Base API
 
-Create a super simple spaced repetition flash card api. Cards are stored in an SQLite database.
+Currently I have a flashcards api. I want to add an api that can create, read, update, and delete text entries to a postgreSQL database. This will be a separate system to avoid impacting the flashcard functionality.
 
-The way to interact with it will be through customGPTs in chatGPT. I will host a custom api on my computer, expose it to the web, and then have my custom GPT send requests via tool use. (we can ignore the GPT integration for now, basically we just need to create the api service for now).
+Each db entry is basically a text document with:
+- title (unique identifier)
+- tags (for organization/filtering)
+- content (markdown formatted text)
 
-The api needs to have functionality to:
-- create a new card
-- update an existing card
-- get next card (by due date - whichever is furthest in the past first. Fine to get things that are not due yet.)
-- get next card that has a specific tag (by due date, same method as above) 
-- mark last card received using either of the two previous methods for getting cards as a success or fail (which also updates the due date, see below))
-- Set due date for last card received
+The endpoints will be:
+- get all titles
+- get all titles based on tags
+- get all documents based on tags
+- get document based on title
+- simple keyword search over document text and get titles
+- create document
+- update document (title or content or tags) based on title (overwrite)
+- delete document based on title
 
-cards need to have:
-- question
-- answer
-- success_count (integer count)
-- due_date (timestamp - not specified by the card creator, but rather updated on the backend)
-- tags (can be multiple)
+One of the key aims is to be able to keep track of knowledge by sending things to this api (it will be handled by chatGPT actions). For example, creating an entry for someone I meet to track their kids' names, or taking down concepts I'm thinking about.
 
-The due dates are based on the following logic, determined anytime a card is created or failed or succeeded on:
-- the intervals (in days) are [1/48, 1, 3, 7, 14, 30, 120, 365] and then 365 ongoing
-- when a card is created, it is due after the first interval has elapsed.
-- after a success, the interval increases to the next one in that list
-- after a failure, the interval resets to the beginning.
+# Work Plan: Text Knowledge Base API
 
-There should be a very simple authentication mechanism, just requiring a passkey.
+## Phase 1: Database Layer
+📌 **Goal:** Set up PostgreSQL database and implement core document storage functionality.
 
-Everything should persist between sessions (including tracking of last card) and be lightweight and simple.
+### Tasks:
 
-There should be limited/concise but clear logging for debugging (not print statements).
+1. **Database Setup & Models** (Task 1)
+   - Create new database schema for documents:
+     ```sql
+     CREATE TABLE documents (
+       id SERIAL PRIMARY KEY,
+       title TEXT UNIQUE NOT NULL,
+       tags JSONB NOT NULL DEFAULT '[]',
+       content TEXT NOT NULL,
+       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+       updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+     );
+     ```
+   - Implement DocumentDB class with SQLAlchemy:
+     - Basic CRUD operations
+     - Tag-based queries
+     - Full-text search functionality
+   - Add comprehensive error handling
+   - Set up logging similar to flashcards.log
 
-**WORKPLAN STARTS HERE - has different chunks of work, to be handled one at a time.**
+2. **Database Tests** (Task 2)
+   - Create TestDocumentDB class following current testing style
+   - Test cases:
+     - Document creation with validation
+     - Document retrieval (by title, tags)
+     - Update operations
+     - Delete operations
+     - Tag filtering
+     - Text search
+   - Error case handling
+   - Use pytest fixtures for database setup/teardown
 
-Implementation Plan: Spaced Repetition Flashcard API
-Chunk 1: Database Schema, Storage System & Logging
-Goal: Set up an SQLite database, implement basic CRUD operations, and add logging for debugging.
+## Phase 2: API Implementation
+📌 **Goal:** Create REST API endpoints while maintaining separation from flashcard functionality.
 
-Tasks:
+### Tasks:
 
-Database Schema Design:
+1. **Core API Setup** (Task 3)
+   - Create DocumentAPI class as a separate FastAPI sub-application
+   - Mount document API under /documents/ prefix in main app
+   - Reuse existing API key authentication
+   - Set up logging (documents_api.log)
 
-Create an SQLite database with a cards table.
-Define fields: id (primary key), question, answer, success_count, due_date, and tags (stored as JSON or in a separate table).
-Create a metadata table to store last_card_id for tracking the last reviewed card.
-Database Operations:
+2. **API Endpoints Implementation** (Task 4)
+   - Implement routes:
+     ```
+     GET    /documents/titles
+     GET    /documents/titles?tags=tag1,tag2
+     GET    /documents?tags=tag1,tag2
+     GET    /documents/{title}
+     GET    /documents/search?query=keyword
+     POST   /documents
+     PUT    /documents/{title}
+     DELETE /documents/{title}
+     ```
+   - Add request/response validation
+   - Implement error handling
 
-Implement functions to:
-Create a new flashcard.
-Update an existing flashcard.
-Retrieve a flashcard by ID.
-Store and retrieve session metadata (e.g., last card received).
-Logging Integration:
+3. **API Testing** (Task 5)
+   - Create TestDocumentAPI class following current style
+   - Test all endpoints:
+     - Authentication
+     - CRUD operations
+     - Tag filtering
+     - Search functionality
+   - Error cases and edge cases
+   - Integration tests
 
-Use Python’s logging module.
-Log database queries, API requests, and errors.
-Use different log levels (INFO, WARNING, ERROR).
-Ensure logs persist to a file for debugging.
-Persistence & Initialization:
+## Phase 3: Documentation & Integration
+📌 **Goal:** Ensure proper documentation and smooth integration.
 
-Ensure the database persists between sessions.
-Add a setup function to initialize the database if it doesn't exist.
+### Tasks:
 
+1. **Documentation Update** (Task 6)
+   - Add new section to README.md
+   - Document all endpoints with examples
+   - Update environment setup instructions
+   - Add example usage in Python
 
-**Chunk 2: API Endpoints & Authentication**
-Goal: Expose API endpoints for interacting with flashcards, require authentication, and integrate logging for API requests.
+2. **Backup/Restore Support** (Task 7)
+   - Add document backup endpoints
+   - Update manage_cards.py to handle documents
+   - Test backup/restore functionality
 
-Tasks:
+Each task is discrete and manageable, following the current project's implementation patterns while keeping the text knowledge base separate from the flashcard system. The existing API key authentication and database connection handling will be reused, but all new functionality will be isolated to avoid impacting the flashcard features.
 
-API Framework:
+---
 
-Use Flask or FastAPI to serve the API.
-Implement structured request handling and response formatting.
-Authentication:
-
-Require a passkey in headers for all requests.
-Reject unauthorized requests with proper status codes.
-Logging Enhancements:
-
-Log incoming API requests and responses.
-Log authentication failures.
-Track execution time for requests (to identify slow queries).
-API Endpoints:
-
-POST /create_card → Create a new card.
-PUT /update_card/{id} → Update an existing card.
-GET /next_card → Retrieve the next due card.
-GET /next_card_by_tag?tag=<tag> → Retrieve the next due card with a specific tag.
-
-
-**Chunk 3: Review Logic & Due Date Calculation**
-Goal: Implement spaced repetition logic with proper tracking and logging of state changes.
-
-Tasks:
-
-Determine the Next Due Card:
-
-Sort by due_date (oldest first).
-Retrieve the first available card.
-Log the card selection process.
-Update Due Dates & Track Reviews:
-
-Implement /mark_success:
-Increment success_count.
-Set due_date based on the next interval.
-Implement /mark_fail:
-Reset success_count to 0.
-Reset due_date to the first interval.
-Log each state change for tracking.
-Store & Retrieve Last Reviewed Card:
-
-Track last_card_id in the metadata table.
-Implement /set_due_date to manually override the due date for the last received card.
-Log the last card updates.
+### Implementation Notes:
+- Maintains same testing style as current project
+- Reuses authentication system
+- Keeps separate database table
+- Follows existing logging patterns
+- Preserves current API endpoints
+- Runs in same process as flashcard API
+- Maintains code separation through FastAPI sub-applications
