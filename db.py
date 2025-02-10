@@ -12,11 +12,18 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Set up logging
-log_handler = logging.FileHandler('flashcards.log')
-log_handler.setFormatter(jsonlogger.JsonFormatter('%(asctime)s %(levelname)s %(message)s'))
 logger = logging.getLogger('flashcards')
-logger.addHandler(log_handler)
 logger.setLevel(logging.INFO)
+
+# File handler
+file_handler = logging.FileHandler('flashcards.log')
+file_handler.setFormatter(jsonlogger.JsonFormatter('%(asctime)s %(levelname)s %(message)s'))
+logger.addHandler(file_handler)
+
+# Console handler
+console_handler = logging.StreamHandler()
+console_handler.setFormatter(logging.Formatter('%(levelname)s: %(message)s'))
+logger.addHandler(console_handler)
 
 # Database setup
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///flashcards.db")

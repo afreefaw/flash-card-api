@@ -16,9 +16,16 @@ load_dotenv()
 # Set up logging
 api_logger = logging.getLogger('flashcards.api')
 api_logger.setLevel(logging.INFO)
-handler = logging.FileHandler('api.log')
-handler.setFormatter(jsonlogger.JsonFormatter('%(asctime)s %(levelname)s %(message)s %(path)s %(method)s %(response_time)ms'))
-api_logger.addHandler(handler)
+
+# File handler
+file_handler = logging.FileHandler('api.log')
+file_handler.setFormatter(jsonlogger.JsonFormatter('%(asctime)s %(levelname)s %(message)s %(path)s %(method)s %(response_time)ms'))
+api_logger.addHandler(file_handler)
+
+# Console handler
+console_handler = logging.StreamHandler()
+console_handler.setFormatter(logging.Formatter('%(levelname)s: %(message)s'))
+api_logger.addHandler(console_handler)
 
 # Initialize FastAPI app
 app = FastAPI(title="Flashcards API")
