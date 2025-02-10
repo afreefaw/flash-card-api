@@ -225,8 +225,13 @@ class FlashcardsDB:
             query = db.query(Card).order_by(Card.due_date)
             
             if tag:
-                # PostgreSQL JSON array contains
-                query = query.filter(Card.tags.contains([tag]))
+                # Use appropriate JSON array check based on database type
+                if 'postgresql' in self.engine.url.drivername:
+                    # PostgreSQL JSON array contains
+                    query = query.filter(Card.tags.contains([tag]))
+                else:
+                    # SQLite JSON array check
+                    query = query.filter(Card.tags.like(f'%"{tag}"%'))
             
             card = query.first()
             

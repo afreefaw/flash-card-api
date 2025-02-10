@@ -1,17 +1,24 @@
 import requests
 from datetime import datetime, timedelta
 import time
+import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 class SpacedRepetitionTest:
-    def __init__(self, base_url: str = "http://localhost:8000", api_key: str = "your-secret-key-here"):
+    def __init__(self, base_url: str = "http://localhost:8000", api_key: str = None):
+        if api_key is None:
+            api_key = os.getenv("API_KEY", "your-secret-key-here")
         self.base_url = base_url
-        self.headers = {"X-API-Key": api_key}
+        self.api_key = api_key
     
     def create_test_card(self, question: str, answer: str, tags: list[str]) -> dict:
         """Helper to create a test card"""
         response = requests.post(
             f"{self.base_url}/create_card",
-            headers=self.headers,
+            params={"api_key": self.api_key},
             json={
                 "question": question,
                 "answer": answer,
@@ -25,7 +32,7 @@ class SpacedRepetitionTest:
         """Helper to get a specific card"""
         response = requests.get(
             f"{self.base_url}/next_card",
-            headers=self.headers
+            params={"api_key": self.api_key}
         )
         response.raise_for_status()
         cards = []
@@ -39,19 +46,19 @@ class SpacedRepetitionTest:
             future_date = (datetime.utcnow() + timedelta(days=365)).isoformat()
             requests.post(
                 f"{self.base_url}/set_due_date/{card['id']}",
-                headers=self.headers,
+                params={"api_key": self.api_key},
                 json={"due_date": future_date}
             )
             response = requests.get(
                 f"{self.base_url}/next_card",
-                headers=self.headers
+                params={"api_key": self.api_key}
             )
         
         # Reset the cards we moved
         for card in cards:
             requests.post(
                 f"{self.base_url}/set_due_date/{card['id']}",
-                headers=self.headers,
+                params={"api_key": self.api_key},
                 json={"due_date": datetime.utcnow().isoformat()}
             )
         
@@ -70,7 +77,10 @@ class SpacedRepetitionTest:
         print(f"Created test card: {card}")
         
         # Set a future due date for any existing cards to ensure our new card is next
-        response = requests.get(f"{self.base_url}/next_card", headers=self.headers)
+        response = requests.get(
+            f"{self.base_url}/next_card",
+            params={"api_key": self.api_key}
+        )
         while response.status_code == 200:
             existing_card = response.json()
             if existing_card["id"] == card["id"]:
@@ -80,15 +90,18 @@ class SpacedRepetitionTest:
             future_date = (datetime.utcnow() + timedelta(days=365)).isoformat()
             requests.post(
                 f"{self.base_url}/set_due_date/{existing_card['id']}",
-                headers=self.headers,
+                params={"api_key": self.api_key},
                 json={"due_date": future_date}
             )
-            response = requests.get(f"{self.base_url}/next_card", headers=self.headers)
+            response = requests.get(
+                f"{self.base_url}/next_card",
+                params={"api_key": self.api_key}
+            )
         
         # Get next card
         response = requests.get(
             f"{self.base_url}/next_card",
-            headers=self.headers
+            params={"api_key": self.api_key}
         )
         response.raise_for_status()
         next_card = response.json()
@@ -114,7 +127,7 @@ class SpacedRepetitionTest:
         # Set a future due date for any existing cards with the same tag
         response = requests.get(
             f"{self.base_url}/next_card_by_tag?tag=geography",
-            headers=self.headers
+            params={"api_key": self.api_key}
         )
         while response.status_code == 200:
             existing_card = response.json()
@@ -125,18 +138,18 @@ class SpacedRepetitionTest:
             future_date = (datetime.utcnow() + timedelta(days=365)).isoformat()
             requests.post(
                 f"{self.base_url}/set_due_date/{existing_card['id']}",
-                headers=self.headers,
+                params={"api_key": self.api_key},
                 json={"due_date": future_date}
             )
             response = requests.get(
-                f"{self.base_url}/next_card_by_tag?tag=geography",
-                headers=self.headers
+                f"{self.base_url}/next_card_by_tag",
+                params={"tag": "geography", "api_key": self.api_key}
             )
         
         # Get next card by tag
         response = requests.get(
-            f"{self.base_url}/next_card_by_tag?tag=geography",
-            headers=self.headers
+            f"{self.base_url}/next_card_by_tag",
+            params={"tag": "geography", "api_key": self.api_key}
         )
         response.raise_for_status()
         next_card = response.json()
@@ -163,7 +176,7 @@ class SpacedRepetitionTest:
             # Mark as success
             response = requests.post(
                 f"{self.base_url}/mark_success/{card_id}",
-                headers=self.headers
+                params={"api_key": self.api_key}
             )
             response.raise_for_status()
             print(f"Marked card {card_id} as success")
@@ -198,7 +211,7 @@ class SpacedRepetitionTest:
         for _ in range(2):
             requests.post(
                 f"{self.base_url}/mark_success/{card_id}",
-                headers=self.headers
+                params={"api_key": self.api_key}
             )
         print("Marked card as success twice")
         
@@ -209,7 +222,7 @@ class SpacedRepetitionTest:
         # Now mark as failure
         response = requests.post(
             f"{self.base_url}/mark_failure/{card_id}",
-            headers=self.headers
+            params={"api_key": self.api_key}
         )
         response.raise_for_status()
         print("Marked card as failure")
@@ -237,7 +250,7 @@ class SpacedRepetitionTest:
         tomorrow = (datetime.utcnow() + timedelta(days=1)).isoformat()
         response = requests.post(
             f"{self.base_url}/set_due_date/{card_id}",
-            headers=self.headers,
+            params={"api_key": self.api_key},
             json={"due_date": tomorrow}
         )
         response.raise_for_status()
@@ -246,7 +259,7 @@ class SpacedRepetitionTest:
         # Try to get next card (should not get this card as it's due tomorrow)
         response = requests.get(
             f"{self.base_url}/next_card",
-            headers=self.headers
+            params={"api_key": self.api_key}
         )
         if response.status_code == 404:
             print("No cards due (expected as we set due date to tomorrow)")
