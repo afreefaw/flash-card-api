@@ -134,7 +134,6 @@ class DocumentDB:
             raise
         finally:
             db.close()
-            session.close()
     def get_documents_by_tags(self, tags: List[str]) -> List[Dict[str, Any]]:
         """Get all documents filtered by tags"""
         db = self._get_db()
@@ -163,7 +162,6 @@ class DocumentDB:
             raise
         finally:
             db.close()
-            session.close()
     def search_documents(self, query: str) -> List[str]:
         """Search documents by keyword and return matching titles"""
         db = self._get_db()
@@ -184,7 +182,6 @@ class DocumentDB:
             raise
         finally:
             db.close()
-            session.close()
     def update_document(self, title: str, content: Optional[str] = None,
                        tags: Optional[List[str]] = None) -> bool:
         """Update an existing document"""
@@ -209,7 +206,6 @@ class DocumentDB:
             raise
         finally:
             db.close()
-            session.close()
     
     def get_all_documents(self) -> List[Dict[str, Any]]:
         """Get all documents"""
