@@ -413,7 +413,7 @@ class FlashcardsDB:
             
             logger.info('Starting bulk upsert', extra={
                 'total_cards': len(cards),
-                'first_card_id': cards[0].get('id') if cards else None
+                'first_card_id': cards[0].id if cards else None
             })
             
             for idx, card_data in enumerate(cards):
@@ -460,7 +460,7 @@ class FlashcardsDB:
                     import traceback
                     logger.error('Error processing individual card', extra={
                         'card_index': idx,
-                        'card_id': card_data.get('id'),
+                        'card_id': card_data.id if hasattr(card_data, 'id') else None,
                         'error': str(card_error),
                         'error_type': type(card_error).__name__,
                         'traceback': traceback.format_exc(),

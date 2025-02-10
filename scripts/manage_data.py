@@ -2,11 +2,26 @@
 import argparse
 import json
 import requests
-from typing import Dict
+from typing import Dict, List
 from datetime import datetime
+from pydantic import BaseModel
 
 # Hardcoded URL for the production server
 API_URL = "https://flash-card-api-5t7m.onrender.com"
+
+# Models matching the API
+class CardBase(BaseModel):
+    question: str
+    answer: str
+    tags: List[str]
+
+class CardResponse(CardBase):
+    id: int
+    success_count: int
+    due_date: str
+
+class BulkCardsUpload(BaseModel):
+    cards: List[CardResponse]
 
 def download_cards(api_key: str, output_file: str) -> None:
     """Download all cards from the API and save to a file."""
@@ -42,15 +57,19 @@ def upload_cards(api_key: str, input_file: str) -> None:
         with open(input_file, 'r') as f:
             data = json.load(f)
         
-        cards = data.get("cards", [])
-        if not cards:
+        raw_cards = data.get("cards", [])
+        if not raw_cards:
             print("No cards found in the input file")
             return
+        
+        # Convert raw dictionaries to CardResponse objects
+        cards = [CardResponse(**card) for card in raw_cards]
+        upload_data = BulkCardsUpload(cards=cards)
         
         response = requests.post(
             f"{API_URL}/upload_cards",
             params={"api_key": api_key},
-            json={"cards": cards}
+            json=upload_data.dict()
         )
         response.raise_for_status()
         
